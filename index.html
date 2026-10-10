@@ -1,0 +1,171 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0912">
+<title>Kelly — Your AI Companion</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b0912;color:#f7efff;font-family:Arial,sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:22px 20px}
+.logo{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#f5b6e7,#b89aff);display:grid;place-items:center;color:#21152b;font-size:26px;font-weight:bold}
+h1{font-size:24px;letter-spacing:4px;margin:0}
+.sub{font-size:12px;color:#aaa0b9;margin-top:7px;letter-spacing:1px}
+.status{margin-left:auto;border:1px solid #30263c;padding:10px;border-radius:25px;color:#c5b5d2;font-size:12px}
+main{max-width:680px;margin:auto;padding:16px 20px 30px;text-align:center}
+.orb{width:210px;height:210px;margin:28px auto 32px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f9c7f4,#d08aef 35%,#9062c9 68%,#261832 100%);box-shadow:0 0 65px #b46be844,inset -10px -14px 24px #170e27aa;position:relative}
+.orb:after{content:"";position:absolute;inset:16px;border:1px solid #ffffff25;border-radius:50%}
+h2{font-size:34px;margin:0 0 14px}
+.intro{font-size:18px;line-height:1.7;color:#aaa0b9}
+.controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:25px 0 15px}
+button{border:1px solid #35283f;background:#21182b;color:#f7efff;padding:15px 20px;border-radius:20px;font-size:15px;cursor:pointer}
+.primary{background:#efb1df;color:#241528;border:0;font-weight:bold}
+button:disabled{opacity:.55}
+#notice{font-size:13px;color:#b7a9c5;line-height:1.6;min-height:22px}
+.chat{margin-top:30px;border:1px solid #302638;border-radius:26px;padding:20px;text-align:left;background:#110e19}
+.chat h3{font-size:15px;letter-spacing:1px}
+#messages{display:flex;flex-direction:column;gap:13px;min-height:100px;max-height:390px;overflow-y:auto;padding:5px 0 18px}
+.msg{padding:13px 15px;border-radius:20px;line-height:1.55;max-width:90%;overflow-wrap:anywhere;white-space:pre-wrap}
+.kelly{background:#21192c;align-self:flex-start;border:1px solid #34263f}
+.me{background:#422e50;align-self:flex-end}
+form{display:flex;gap:8px;margin-top:8px}
+input{min-width:0;flex:1;background:#0c0912;color:white;border:1px solid #302638;border-radius:17px;padding:14px;font-size:15px}
+form button{padding:12px}
+footer{color:#776c84;font-size:12px;padding:22px}
+@media(max-width:380px){.orb{width:175px;height:175px}h2{font-size:29px}.intro{font-size:16px}}
+</style>
+</head>
+<body>
+<header>
+<div class="logo">K</div>
+<div><h1>KELLY</h1><div class="sub">YOUR AI COMPANION · PERSONAL</div></div>
+<div class="status" id="status">Ready to chat</div>
+</header>
+<main>
+<div class="orb" id="orb"></div>
+<h2>Hey, I'm Kelly.</h2>
+<div class="intro">Your supportive AI companion. Tell me about your day, share an idea, or just talk for a while.</div>
+<div class="controls">
+<button class="primary" id="voice">🎙️ Talk to Kelly</button>
+<button id="stop">Stop voice</button>
+</div>
+<div id="notice">You can type a message or try voice input.</div>
+<section class="chat">
+<h3>CONVERSATION</h3>
+<div id="messages" aria-live="polite">
+<div class="msg kelly">Hey 😊 I'm Kelly. I'm here to listen and help you think things through. What's on your mind?</div>
+</div>
+<form id="form">
+<input id="input" placeholder="Message Kelly..." autocomplete="off" required>
+<button class="primary" type="submit" id="send">Send</button>
+</form>
+</section>
+<footer>Kelly · Made with care 💜</footer>
+</main>
+<script>
+const messages=document.getElementById('messages');
+const input=document.getElementById('input');
+const notice=document.getElementById('notice');
+const status=document.getElementById('status');
+const voiceButton=document.getElementById('voice');
+let recognition=null;
+let listening=false;
+
+function addMessage(text,who){
+ const el=document.createElement('div');
+ el.className='msg '+who;
+ el.textContent=text;
+ messages.appendChild(el);
+ messages.scrollTop=messages.scrollHeight;
+ return el;
+}
+function speak(text){
+ if(!('speechSynthesis' in window)){
+  notice.textContent='Speech playback is not supported by this browser.';
+  return;
+ }
+ speechSynthesis.cancel();
+ const utterance=new SpeechSynthesisUtterance(text);
+ utterance.lang='en-US';
+ utterance.rate=1;
+ speechSynthesis.speak(utterance);
+}
+async function sendMessage(text){
+ text=text.trim();
+ if(!text)return;
+ addMessage(text,'me');
+ input.value='';
+ status.textContent='Thinking…';
+ notice.textContent='Kelly is preparing a reply…';
+ try{
+  const response=await fetch('/api/chat',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({message:text})
+  });
+  if(!response.ok)throw new Error('AI backend is not connected yet.');
+  const data=await response.json();
+  if(!data.reply)throw new Error('The AI returned an empty reply.');
+  addMessage(data.reply,'kelly');
+  status.textContent='Ready to chat';
+  notice.textContent='Kelly replied 💜';
+  speak(data.reply);
+ }catch(error){
+  addMessage('I received your message 💜, but my AI brain is not connected yet. We need to set up my secure AI backend next.','kelly');
+  status.textContent='Setup needed';
+  notice.textContent='Chat interface works; AI backend still needs configuration.';
+ }
+}
+document.getElementById('form').addEventListener('submit',e=>{
+ e.preventDefault();
+ sendMessage(input.value);
+});
+function stopListening(){
+ listening=false;
+ if(recognition)recognition.stop();
+ voiceButton.textContent='🎙️ Talk to Kelly';
+ status.textContent='Ready to chat';
+}
+voiceButton.addEventListener('click',()=>{
+ const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SpeechRecognition){
+  notice.textContent='Voice input is not supported in this browser. Try Chrome; typing is still available.';
+  return;
+ }
+ if(listening){stopListening();return;}
+ recognition=new SpeechRecognition();
+ recognition.lang='en-US';
+ recognition.continuous=false;
+ recognition.interimResults=false;
+ recognition.onstart=()=>{
+  listening=true;
+  voiceButton.textContent='🔴 Listening…';
+  status.textContent='Listening';
+  notice.textContent='I'm listening. Speak now 💜';
+ };
+ recognition.onresult=e=>{
+  const transcript=e.results[0][0].transcript;
+  input.value=transcript;
+  stopListening();
+  sendMessage(transcript);
+ };
+ recognition.onerror=e=>{
+  notice.textContent='Microphone issue: '+e.error+'. Check browser permissions and try again.';
+  stopListening();
+ };
+ recognition.onend=()=>{
+  if(listening)stopListening();
+ };
+ try{recognition.start();}
+ catch(e){notice.textContent='Could not start the microphone. Try again.';}
+});
+document.getElementById('stop').addEventListener('click',()=>{
+ stopListening();
+ if('speechSynthesis' in window)speechSynthesis.cancel();
+ notice.textContent='Voice stopped.';
+});
+</script>
+</body>
+</html>
